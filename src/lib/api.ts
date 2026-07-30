@@ -10,12 +10,7 @@ import type {
 const API_PORT = 9000;
 
 function createClient(serverAddress: string, _apiPort?: number) {
-  const protocol =
-    serverAddress.includes(":") || serverAddress === "localhost"
-      ? "http"
-      : "https";
-
-  const baseURL = `${protocol}://${serverAddress}:${API_PORT}`;
+  const baseURL = `http://${serverAddress}:${API_PORT}`;
 
   return axios.create({
     baseURL,
@@ -56,9 +51,11 @@ export async function provisionMikrotik(
   payload: ProvisionRequest
 ): Promise<ProvisionResponse> {
   const client = createClient(serverAddress);
+
   const { data } = await client.post<ProvisionResponse>(
     "/api/provision/mikrotik",
     payload
   );
+
   return data;
 }
