@@ -14,7 +14,7 @@ curl -fsSL https://raw.githubusercontent.com/TunGuard/get/main/installer.sh | ba
 
 ### 2. Open the Generator
 
-Visit the [TunGuard Provision Generator](https://tunguard-provision.vercel.app) (or run locally with `npm run dev`).
+Visit the [TunGuard Provision Generator](https://mikrotik-provision.vercel.app) (or run locally with `npm run dev`).
 
 ### 3. Enter Your Server Address
 
