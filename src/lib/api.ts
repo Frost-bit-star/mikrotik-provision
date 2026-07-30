@@ -9,7 +9,7 @@ import type {
 
 const API_PORT = 9000;
 
-function createClient(serverAddress: string) {
+function createClient(serverAddress: string, _apiPort?: number) {
   const protocol =
     serverAddress.includes(":") || serverAddress === "localhost"
       ? "http"
@@ -24,7 +24,8 @@ function createClient(serverAddress: string) {
 }
 
 export async function checkHealth(
-  serverAddress: string
+  serverAddress: string,
+  _apiPort?: number
 ): Promise<HealthResponse> {
   const client = createClient(serverAddress);
   const { data } = await client.get<HealthResponse>("/api/health");
@@ -32,7 +33,8 @@ export async function checkHealth(
 }
 
 export async function getStatus(
-  serverAddress: string
+  serverAddress: string,
+  _apiPort?: number
 ): Promise<StatusResponse> {
   const client = createClient(serverAddress);
   const { data } = await client.get<StatusResponse>("/api/status");
@@ -40,7 +42,8 @@ export async function getStatus(
 }
 
 export async function getServerKey(
-  serverAddress: string
+  serverAddress: string,
+  _apiPort?: number
 ): Promise<ServerKeyResponse> {
   const client = createClient(serverAddress);
   const { data } = await client.get<ServerKeyResponse>("/api/server_key");
@@ -49,6 +52,7 @@ export async function getServerKey(
 
 export async function provisionMikrotik(
   serverAddress: string,
+  _apiPort: number | undefined,
   payload: ProvisionRequest
 ): Promise<ProvisionResponse> {
   const client = createClient(serverAddress);
