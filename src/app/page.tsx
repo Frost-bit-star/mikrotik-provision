@@ -54,7 +54,7 @@ const features = [
   {
     icon: Zap,
     title: "Zero Config",
-    desc: "Enter your device name and server address. That's it. Everything else happens automatically.",
+    desc: "Pick a method, enter a few details, and get a complete RouterOS bootstrap script. That's it.",
   },
   {
     icon: Shield,
@@ -83,11 +83,38 @@ const features = [
   },
 ]
 
+const deploymentOptions = [
+  {
+    icon: Shield,
+    title: "TunGuard WireGuard",
+    tagline: "Automated WireGuard with a peer dashboard",
+    bestFor: "You manage many routers — especially behind CGNAT or dynamic IPs — and want one control plane.",
+    points: [
+      "Self-hosted server with a dashboard for every peer and keypair",
+      "Jump host + built-in SSH terminal to reach any router",
+      "Works behind CGNAT: routers dial out and reconnect automatically",
+      "Auto-assigned IPs, no manual config per router",
+    ],
+  },
+  {
+    icon: KeyRound,
+    title: "Native IPsec",
+    tagline: "Site-to-site script for an existing gateway",
+    bestFor: "You already run an IPsec gateway and just need a router pointed at it.",
+    points: [
+      "Generates a RouterOS IPsec script — no TunGuard server needed",
+      "Connects your local LAN to a remote LAN",
+      "Works with MikroTik CHR, strongSwan, or any IKEv2 gateway",
+      "No peer dashboard: peers are managed on your own gateway",
+    ],
+  },
+]
+
 const howItWorks = [
   {
     step: "1",
-    title: "Generate Script",
-    desc: "Enter your device name and TunGuard server IP. The app asks the server for a WireGuard config and builds a complete RouterOS bootstrap script.",
+    title: "Choose a Method",
+    desc: "Pick TunGuard WireGuard or Native IPsec, enter the few details, and get a complete RouterOS bootstrap script.",
   },
   {
     step: "2",
@@ -97,7 +124,7 @@ const howItWorks = [
   {
     step: "3",
     title: "Router Connects",
-    desc: "Your MikroTik creates the WireGuard interface, applies the config, and connects to your server automatically.",
+    desc: "WireGuard registers with your TunGuard server; IPsec dials your gateway. The tunnel comes up automatically.",
   },
 ]
 
@@ -272,14 +299,15 @@ export default function Home() {
         <section className="relative overflow-hidden border-b">
           <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-primary/5" />
           <div className="relative mx-auto flex max-w-6xl flex-col items-center px-4 py-20 text-center lg:py-32">
-            <Badge variant="secondary" className="mb-6">Open Source WireGuard Automation</Badge>
+            <Badge variant="secondary" className="mb-6">Open Source MikroTik Provisioning</Badge>
             <h1 className="max-w-3xl text-4xl font-bold tracking-tight sm:text-5xl lg:text-6xl">
-              MikroTik provisioning for your{" "}
-              <span className="text-primary">self-hosted</span> TunGuard server.
+              Provision your MikroTik routers —{" "}
+              <span className="text-primary">WireGuard or IPsec</span>.
             </h1>
             <p className="mt-6 max-w-2xl text-lg text-muted-foreground">
-              Don&apos;t fight for a public IP. TunGuard automates WireGuard peer management in userspace.
-              Generate a MikroTik bootstrap script and connect your routers in seconds.
+              Two deployment methods, one dashboard. Use TunGuard for automated WireGuard with peer
+              management and jump-host access behind CGNAT, or generate a native IPsec script for
+              your existing gateway. Generate a RouterOS script and connect in seconds.
             </p>
             <div className="mt-8 flex gap-4">
               <Button size="lg" asChild>
@@ -300,17 +328,52 @@ export default function Home() {
         {/* How it Works */}
         <section id="how-it-works" className="border-b py-20">
           <div className="mx-auto max-w-6xl px-4">
-            <h2 className="text-center text-3xl font-bold tracking-tight">How It Works</h2>
+            <h2 className="text-center text-3xl font-bold tracking-tight">TunGuard vs Native IPsec</h2>
             <p className="mt-4 text-center text-muted-foreground">
-              Three simple steps to connect your MikroTik router to TunGuard.
+              Two deployment methods. Pick the one that fits your setup.
             </p>
-            <div className="mt-12 grid gap-8 md:grid-cols-3">
+
+            <div className="mt-12 grid gap-6 md:grid-cols-2">
+              {deploymentOptions.map((opt) => {
+                const Icon = opt.icon
+                return (
+                  <Card key={opt.title}>
+                    <CardContent className="pt-6">
+                      <div className="flex items-center gap-3">
+                        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
+                          <Icon className="h-5 w-5 text-primary" />
+                        </div>
+                        <div>
+                          <h3 className="font-semibold">{opt.title}</h3>
+                          <p className="text-xs text-muted-foreground">{opt.tagline}</p>
+                        </div>
+                      </div>
+                      <ul className="mt-4 flex flex-col gap-2 text-sm text-muted-foreground">
+                        {opt.points.map((point) => (
+                          <li key={point} className="flex items-start gap-2">
+                            <Check className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+                            {point}
+                          </li>
+                        ))}
+                      </ul>
+                      <div className="mt-4 rounded-lg bg-muted p-3 text-xs text-muted-foreground">
+                        <span className="font-semibold text-foreground">Best when: </span>
+                        {opt.bestFor}
+                      </div>
+                    </CardContent>
+                  </Card>
+                )
+              })}
+            </div>
+
+            <h3 className="mt-20 text-center text-2xl font-bold tracking-tight">How It Works</h3>
+            <div className="mt-8 grid gap-8 md:grid-cols-3">
               {howItWorks.map((item) => (
                 <div key={item.step} className="flex flex-col items-center text-center">
                   <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary text-lg font-bold text-primary-foreground">
                     {item.step}
                   </div>
-                  <h3 className="mt-4 text-lg font-semibold">{item.title}</h3>
+                  <h4 className="mt-4 text-lg font-semibold">{item.title}</h4>
                   <p className="mt-2 text-sm text-muted-foreground">{item.desc}</p>
                 </div>
               ))}
@@ -321,9 +384,9 @@ export default function Home() {
         {/* Features */}
         <section id="features" className="border-b py-20">
           <div className="mx-auto max-w-6xl px-4">
-            <h2 className="text-center text-3xl font-bold tracking-tight">Why TunGuard?</h2>
+            <h2 className="text-center text-3xl font-bold tracking-tight">Why This Dashboard?</h2>
             <p className="mt-4 text-center text-muted-foreground">
-              Everything you need to provision MikroTik routers for WireGuard.
+              Everything you need to provision MikroTik routers — for WireGuard or IPsec.
             </p>
             <div className="mt-12 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
               {features.map((f) => {
@@ -568,9 +631,10 @@ export default function Home() {
         {/* CTA */}
         <section className="py-20">
           <div className="mx-auto max-w-3xl px-4 text-center">
-            <h2 className="text-3xl font-bold tracking-tight">Get Started with TunGuard</h2>
+            <h2 className="text-3xl font-bold tracking-tight">Get Started</h2>
             <p className="mt-4 text-muted-foreground">
-              Install the server, generate a script, and connect your MikroTik router in minutes.
+              Choose TunGuard WireGuard or Native IPsec, generate a script, and connect your MikroTik
+              router in minutes.
             </p>
             <div className="mt-8 flex justify-center gap-4">
               <Button size="lg" asChild>
@@ -599,7 +663,8 @@ export default function Home() {
                 <span className="text-lg font-bold">TunGuard</span>
               </div>
               <p className="mt-3 text-sm text-muted-foreground">
-                Open source WireGuard automation. Run WireGuard in userspace and manage peers effortlessly.
+                Open source MikroTik provisioning. Automate WireGuard with TunGuard or generate a
+                native IPsec script — all from one dashboard.
               </p>
             </div>
             <div>
