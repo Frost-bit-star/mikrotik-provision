@@ -33,7 +33,7 @@ export function parseWireGuardConfig(config: string): WireGuardConfig {
     server_public_key: values["peer_publickey"] || "",
     endpoint_host: endpointHost,
     endpoint_port: isNaN(endpointPort) ? 13231 : endpointPort,
-    allowed_ips: values["peer_allowedips"] || "0.0.0.0/0",
+    allowed_ips: values["peer_allowedips"] || "",
     persistent_keepalive: parseInt(values["peer_persistentkeepalive"] || "25", 10),
   }
 }
@@ -47,7 +47,7 @@ export function generateScript(
   const subnet =
     octets.length === 4
       ? `${octets.slice(0, 3).join(".")}.0/24`
-      : "10.100.0.0/24"
+      : `${ip}/24`
 
   return `/interface wireguard
 :if ([:len [/interface wireguard find name="${interfaceName}"]] > 0) do={
