@@ -27,6 +27,15 @@ export interface FormValues {
   deviceName: string
 }
 
+export interface IpsecFormValues {
+  gatewayAddress: string
+  psk: string
+  remoteNetwork: string
+  localNetwork: string
+}
+
+export type ConnectionType = "wireguard" | "ipsec"
+
 export type Step = "form" | "generating" | "result" | "error"
 
 export interface ProgressMessage {

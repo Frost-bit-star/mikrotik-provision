@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import axios from "axios"
-import { ArrowRight, GitBranch, Shield, Zap, Server, Globe, Download, Menu, X, Check, Copy, Smartphone, ExternalLink } from "lucide-react"
+import { ArrowRight, GitBranch, Shield, Zap, Server, Globe, Download, Menu, X, Check, Copy, Smartphone, ExternalLink, KeyRound } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -13,9 +13,12 @@ import { toast } from "sonner"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
+import { cn } from "@/lib/utils"
 import { generateConfig } from "@/lib/api"
 import { generateScript, parseWireGuardConfig } from "@/lib/script-generator"
-import type { FormValues, WireGuardConfig, ProgressMessage } from "@/lib/types"
+import { generateIpsecScript } from "@/lib/ipsec-script-generator"
+import { IpsecForm } from "@/components/ipsec-form"
+import type { FormValues, WireGuardConfig, ProgressMessage, IpsecFormValues, ConnectionType } from "@/lib/types"
 
 const formSchema = z.object({
   serverAddress: z.string().min(1, "Server address is required"),
@@ -114,6 +117,7 @@ function extractError(err: unknown): string {
 export default function Home() {
   const [mobileOpen, setMobileOpen] = useState(false)
   const [step, setStep] = useState<Step>("form")
+  const [connectionType, setConnectionType] = useState<ConnectionType>("wireguard")
   const [values, setValues] = useState<FormValues | null>(null)
   const [provision, setProvision] = useState<WireGuardConfig | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -186,6 +190,14 @@ export default function Home() {
     }
   }
 
+  const handleIpsecGenerate = (v: IpsecFormValues) => {
+    setValues(null)
+    setProvision(null)
+    setError(null)
+    setScript(generateIpsecScript(v))
+    setStep("result")
+  }
+
   const handleCopy = async () => {
     await navigator.clipboard.writeText(script)
     toast.success("Script copied to clipboard")
@@ -196,7 +208,7 @@ export default function Home() {
     const url = URL.createObjectURL(blob)
     const a = document.createElement("a")
     a.href = url
-    a.download = "tunguard-bootstrap.rsc"
+    a.download = connectionType === "wireguard" ? "tunguard-bootstrap.rsc" : "tunguard-ipsec.rsc"
     a.click()
     URL.revokeObjectURL(url)
   }
@@ -339,11 +351,44 @@ export default function Home() {
               <div className="mb-8 text-center">
                 <h2 className="text-3xl font-bold tracking-tight">Provision Generator</h2>
                 <p className="mt-2 text-muted-foreground">
-                  Enter your device name and TunGuard server IP to generate a bootstrap script.
+                  Choose your deployment method and generate a RouterOS bootstrap script.
                 </p>
               </div>
 
               {step === "form" && (
+                <div className="mb-4 grid grid-cols-2 gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setConnectionType("wireguard")}
+                    className={cn(
+                      "flex flex-col items-center gap-2 rounded-lg border p-4 transition-colors",
+                      connectionType === "wireguard"
+                        ? "border-primary bg-primary/5"
+                        : "border-border hover:border-primary/50"
+                    )}
+                  >
+                    <Shield className="h-5 w-5 text-primary" />
+                    <span className="text-sm font-semibold">TunGuard WireGuard</span>
+                    <span className="text-xs text-muted-foreground">Self-hosted WireGuard server</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setConnectionType("ipsec")}
+                    className={cn(
+                      "flex flex-col items-center gap-2 rounded-lg border p-4 transition-colors",
+                      connectionType === "ipsec"
+                        ? "border-primary bg-primary/5"
+                        : "border-border hover:border-primary/50"
+                    )}
+                  >
+                    <KeyRound className="h-5 w-5 text-primary" />
+                    <span className="text-sm font-semibold">Native IPsec</span>
+                    <span className="text-xs text-muted-foreground">Your existing IPsec gateway</span>
+                  </button>
+                </div>
+              )}
+
+              {step === "form" && connectionType === "wireguard" && (
                 <Card>
                   <CardContent className="pt-6">
                     <form onSubmit={handleSubmit(handleGenerate)} className="flex flex-col gap-4">
@@ -388,6 +433,14 @@ export default function Home() {
                 </Card>
               )}
 
+              {step === "form" && connectionType === "ipsec" && (
+                <Card>
+                  <CardContent className="pt-6">
+                    <IpsecForm onGenerate={handleIpsecGenerate} />
+                  </CardContent>
+                </Card>
+              )}
+
               {step === "generating" && (
                 <Card>
                   <CardContent className="pt-6">
@@ -414,7 +467,7 @@ export default function Home() {
                 </Card>
               )}
 
-              {step === "result" && provision && (
+              {step === "result" && (
                 <Card>
                   <CardContent className="pt-6">
                     <div className="flex flex-col gap-4">
@@ -424,20 +477,28 @@ export default function Home() {
                         </div>
                         <div>
                           <h2 className="text-lg font-semibold">Bootstrap Script Generated</h2>
-                          <p className="text-sm text-muted-foreground">
-                            {values?.deviceName} is ready. Apply this script on your MikroTik.
-                          </p>
+                          {connectionType === "wireguard" && values?.deviceName ? (
+                            <p className="text-sm text-muted-foreground">
+                              {values.deviceName} is ready. Apply this script on your MikroTik.
+                            </p>
+                          ) : (
+                            <p className="text-sm text-muted-foreground">
+                              IPsec config generated. Apply this script on your MikroTik.
+                            </p>
+                          )}
                         </div>
                       </div>
 
                       <Separator />
 
-                      <div className="flex flex-wrap gap-2">
-                        <Badge variant="secondary">Assigned IP: {provision.address}</Badge>
-                        <Badge variant="secondary">Endpoint: {provision.endpoint_host}:{provision.endpoint_port}</Badge>
-                        <Badge variant="secondary">Allowed IPs: {provision.allowed_ips}</Badge>
-                        <Badge variant="secondary">DNS: {provision.dns}</Badge>
-                      </div>
+                      {connectionType === "wireguard" && provision && (
+                        <div className="flex flex-wrap gap-2">
+                          <Badge variant="secondary">Assigned IP: {provision.address}</Badge>
+                          <Badge variant="secondary">Endpoint: {provision.endpoint_host}:{provision.endpoint_port}</Badge>
+                          <Badge variant="secondary">Allowed IPs: {provision.allowed_ips}</Badge>
+                          <Badge variant="secondary">DNS: {provision.dns}</Badge>
+                        </div>
+                      )}
 
                       <div className="relative">
                         <pre className="max-h-80 overflow-auto rounded-lg border bg-muted p-4 text-xs leading-relaxed">
