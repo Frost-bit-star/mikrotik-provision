@@ -1,43 +1,30 @@
-export interface HealthResponse {
-  status: string
-  version: string
-}
-
-export interface StatusResponse {
-  listen_port: number
-  server_ip: string
-  subnet: string
-  mtu: number
-}
-
-export interface ServerKeyResponse {
-  public_key: string
-}
-
-export interface ProvisionRequest {
+export interface GenerateConfigRequest {
   device_name: string
-  public_key: string
+  server_host: string
 }
 
-export interface ProvisionResponse {
-  assigned_ip: string
-  server_public_key: string
-  endpoint: string
-  listen_port: number
-  allowed_ips: string
+export interface GenerateConfigResponse {
+  success: boolean
+  config?: string
+  allowed_ip?: string
+  device_name?: string
+  error?: string
+}
+
+export interface WireGuardConfig {
+  private_key: string
+  address: string
   dns: string
-  mtu: number
+  server_public_key: string
+  endpoint_host: string
+  endpoint_port: number
+  allowed_ips: string
   persistent_keepalive: number
 }
 
 export interface FormValues {
   serverAddress: string
-  apiPort: number
   deviceName: string
-  wireguardInterface: string
-  tunnelListenPort: number
-  persistentKeepalive: number
-  mtu: number
 }
 
 export type Step = "form" | "generating" | "result" | "error"

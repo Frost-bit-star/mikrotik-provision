@@ -1,7 +1,8 @@
 "use client"
 
 import { useState } from "react"
-import { ArrowRight, GitBranch, Shield, Zap, Server, Globe, Download, Menu, X, Check, Copy, ChevronDown, ChevronUp, Wifi, Network, Activity, Gauge, ExternalLink } from "lucide-react"
+import axios from "axios"
+import { ArrowRight, GitBranch, Shield, Zap, Server, Globe, Download, Menu, X, Check, Copy, Smartphone, ExternalLink } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -12,27 +13,19 @@ import { toast } from "sonner"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
-import { checkHealth, getStatus, getServerKey, provisionMikrotik } from "@/lib/api"
-import { generateScript } from "@/lib/script-generator"
-import type { FormValues, ProvisionResponse, ProgressMessage } from "@/lib/types"
+import { generateConfig } from "@/lib/api"
+import { generateScript, parseWireGuardConfig } from "@/lib/script-generator"
+import type { FormValues, WireGuardConfig, ProgressMessage } from "@/lib/types"
 
 const formSchema = z.object({
   serverAddress: z.string().min(1, "Server address is required"),
-  apiPort: z.coerce.number().int().positive(),
   deviceName: z.string().min(1, "Device name is required"),
-  wireguardInterface: z.string().min(1, "Interface name is required"),
-  tunnelListenPort: z.coerce.number().int().positive(),
-  persistentKeepalive: z.coerce.number().int().min(0),
-  mtu: z.coerce.number().int().positive(),
 })
 
 const steps = [
-  { key: "connect", label: "Connecting to TunGuard..." },
-  { key: "validate", label: "Validating server..." },
-  { key: "status", label: "Retrieving server information..." },
-  { key: "key", label: "Retrieving server key..." },
-  { key: "provision", label: "Registering router with TunGuard..." },
-  { key: "script", label: "Generating bootstrap script..." },
+  { key: "connect", label: "Connecting to TunGuard server..." },
+  { key: "config", label: "Generating WireGuard config..." },
+  { key: "script", label: "Generating MikroTik script..." },
   { key: "done", label: "Done." },
 ]
 
@@ -58,7 +51,7 @@ const features = [
   {
     icon: Zap,
     title: "Zero Config",
-    desc: "Enter your server address. That's it. Everything else happens automatically.",
+    desc: "Enter your device name and server address. That's it. Everything else happens automatically.",
   },
   {
     icon: Shield,
@@ -68,7 +61,7 @@ const features = [
   {
     icon: Server,
     title: "Auto Provisioning",
-    desc: "Routers generate their own keys and register themselves with TunGuard.",
+    desc: "The server creates the keypair and config. Your router just applies it.",
   },
   {
     icon: Globe,
@@ -91,7 +84,7 @@ const howItWorks = [
   {
     step: "1",
     title: "Generate Script",
-    desc: "Enter your TunGuard server address and click generate. The app validates your server and builds a complete RouterOS bootstrap script.",
+    desc: "Enter your device name and TunGuard server IP. The app asks the server for a WireGuard config and builds a complete RouterOS bootstrap script.",
   },
   {
     step: "2",
@@ -101,19 +94,29 @@ const howItWorks = [
   {
     step: "3",
     title: "Router Connects",
-    desc: "Your MikroTik creates a WireGuard interface, generates its keypair, registers with TunGuard, and applies the VPN configuration automatically.",
+    desc: "Your MikroTik creates the WireGuard interface, applies the config, and connects to your server automatically.",
   },
 ]
 
 type Step = "form" | "generating" | "result" | "error"
 
+function extractError(err: unknown): string {
+  if (axios.isAxiosError(err)) {
+    const data = err.response?.data as { error?: string } | undefined
+    if (data?.error) return data.error
+    if (err.code === "ERR_NETWORK") return "Unable to contact the TunGuard server."
+    return err.message
+  }
+  if (err instanceof Error) return err.message
+  return "Unable to contact the TunGuard server."
+}
+
 export default function Home() {
   const [mobileOpen, setMobileOpen] = useState(false)
   const [step, setStep] = useState<Step>("form")
   const [values, setValues] = useState<FormValues | null>(null)
-  const [provision, setProvision] = useState<ProvisionResponse | null>(null)
+  const [provision, setProvision] = useState<WireGuardConfig | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const [showAdvanced, setShowAdvanced] = useState(false)
   const [messages, setMessages] = useState<ProgressMessage[]>([])
   const [script, setScript] = useState("")
 
@@ -125,12 +128,7 @@ export default function Home() {
     resolver: zodResolver(formSchema),
     defaultValues: {
       serverAddress: "",
-      apiPort: 9000,
       deviceName: "Office Router",
-      wireguardInterface: "tunguard",
-      tunnelListenPort: 13241,
-      persistentKeepalive: 25,
-      mtu: 1420,
     },
   })
 
@@ -160,38 +158,30 @@ export default function Home() {
 
     try {
       update("connect", "active")
-      await checkHealth(v.serverAddress, v.apiPort)
+      const response = await generateConfig(v.serverAddress, {
+        device_name: v.deviceName,
+        server_host: v.serverAddress,
+      })
       update("connect", "done")
 
-      update("validate", "active")
-      update("validate", "done")
-
-      update("status", "active")
-      const status = await getStatus(v.serverAddress, v.apiPort)
-      update("status", "done")
-
-      update("key", "active")
-      const keyData = await getServerKey(v.serverAddress, v.apiPort)
-      update("key", "done")
-
-      update("provision", "active")
-      const provisionResponse = await provisionMikrotik(v.serverAddress, v.apiPort, {
-        device_name: v.deviceName,
-        public_key: "",
-      })
-      update("provision", "done")
+      update("config", "active")
+      if (!response.success || !response.config) {
+        throw new Error(response.error || "Server returned no config.")
+      }
+      const wg = parseWireGuardConfig(response.config)
+      update("config", "done")
 
       update("script", "active")
-      const generatedScript = generateScript(v, provisionResponse)
+      const generatedScript = generateScript("tunguard", wg)
       setScript(generatedScript)
       update("script", "done")
 
       update("done", "active")
       await new Promise((r) => setTimeout(r, 300))
-      setProvision(provisionResponse)
+      setProvision(wg)
       setStep("result")
-    } catch {
-      setError("Unable to contact the TunGuard server.")
+    } catch (err) {
+      setError(extractError(err))
       setStep("error")
     }
   }
@@ -292,12 +282,6 @@ export default function Home() {
                 </a>
               </Button>
             </div>
-            <p className="mt-4 text-sm text-muted-foreground">
-              Install TunGuard:{" "}
-              <code className="rounded bg-muted px-2 py-0.5 text-xs">
-                curl -fsSL https://raw.githubusercontent.com/TunGuard/get/main/installer.sh | bash
-              </code>
-            </p>
           </div>
         </section>
 
@@ -355,7 +339,7 @@ export default function Home() {
               <div className="mb-8 text-center">
                 <h2 className="text-3xl font-bold tracking-tight">Provision Generator</h2>
                 <p className="mt-2 text-muted-foreground">
-                  Enter your TunGuard server address and generate a bootstrap script.
+                  Enter your device name and TunGuard server IP to generate a bootstrap script.
                 </p>
               </div>
 
@@ -364,9 +348,24 @@ export default function Home() {
                   <CardContent className="pt-6">
                     <form onSubmit={handleSubmit(handleGenerate)} className="flex flex-col gap-4">
                       <div className="flex flex-col gap-2">
+                        <Label htmlFor="deviceName" className="flex items-center gap-2">
+                          <Smartphone className="h-4 w-4" />
+                          Device Name
+                        </Label>
+                        <Input
+                          id="deviceName"
+                          placeholder="my-phone"
+                          {...register("deviceName")}
+                        />
+                        {errors.deviceName && (
+                          <p className="text-xs text-destructive">{errors.deviceName.message}</p>
+                        )}
+                      </div>
+
+                      <div className="flex flex-col gap-2">
                         <Label htmlFor="serverAddress" className="flex items-center gap-2">
                           <Server className="h-4 w-4" />
-                          Server Address
+                          Server IP
                         </Label>
                         <Input
                           id="serverAddress"
@@ -377,68 +376,13 @@ export default function Home() {
                           <p className="text-xs text-destructive">{errors.serverAddress.message}</p>
                         )}
                         <p className="text-xs text-muted-foreground">
-                          e.g. vpn.example.com or your server IP
-                        </p>
-                        <p className="text-xs text-amber-600 dark:text-amber-400">
-                          Behind Cloudflare? Use your server&apos;s public IP instead of the domain.
+                          Calls <code className="rounded bg-muted px-1 py-0.5 text-xs">http://{`{ip}`}:9000/api/peer/generate-config</code>
                         </p>
                       </div>
 
                       <Button type="submit" size="lg" className="w-full">
                         Generate Script
                       </Button>
-
-                      <Separator />
-
-                      <button
-                        type="button"
-                        onClick={() => setShowAdvanced(!showAdvanced)}
-                        className="flex items-center justify-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
-                      >
-                        {showAdvanced ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-                        Advanced Options
-                      </button>
-
-                      {showAdvanced && (
-                        <div className="grid grid-cols-2 gap-4">
-                          <div className="flex flex-col gap-2">
-                            <Label htmlFor="apiPort" className="flex items-center gap-2">
-                              <Activity className="h-4 w-4" /> API Port
-                            </Label>
-                            <Input id="apiPort" type="number" {...register("apiPort")} />
-                          </div>
-                          <div className="flex flex-col gap-2">
-                            <Label htmlFor="deviceName" className="flex items-center gap-2">
-                              <Shield className="h-4 w-4" /> Device Name
-                            </Label>
-                            <Input id="deviceName" {...register("deviceName")} />
-                          </div>
-                          <div className="flex flex-col gap-2">
-                            <Label htmlFor="wireguardInterface" className="flex items-center gap-2">
-                              <Wifi className="h-4 w-4" /> WireGuard Interface
-                            </Label>
-                            <Input id="wireguardInterface" {...register("wireguardInterface")} />
-                          </div>
-                          <div className="flex flex-col gap-2">
-                            <Label htmlFor="tunnelListenPort" className="flex items-center gap-2">
-                              <Network className="h-4 w-4" /> Tunnel Listen Port
-                            </Label>
-                            <Input id="tunnelListenPort" type="number" {...register("tunnelListenPort")} />
-                          </div>
-                          <div className="flex flex-col gap-2">
-                            <Label htmlFor="persistentKeepalive" className="flex items-center gap-2">
-                              <Activity className="h-4 w-4" /> Persistent Keepalive
-                            </Label>
-                            <Input id="persistentKeepalive" type="number" {...register("persistentKeepalive")} />
-                          </div>
-                          <div className="flex flex-col gap-2">
-                            <Label htmlFor="mtu" className="flex items-center gap-2">
-                              <Gauge className="h-4 w-4" /> MTU
-                            </Label>
-                            <Input id="mtu" type="number" {...register("mtu")} />
-                          </div>
-                        </div>
-                      )}
                     </form>
                   </CardContent>
                 </Card>
@@ -481,7 +425,7 @@ export default function Home() {
                         <div>
                           <h2 className="text-lg font-semibold">Bootstrap Script Generated</h2>
                           <p className="text-sm text-muted-foreground">
-                            TunGuard server verified. Script generated successfully.
+                            {values?.deviceName} is ready. Apply this script on your MikroTik.
                           </p>
                         </div>
                       </div>
@@ -489,10 +433,10 @@ export default function Home() {
                       <Separator />
 
                       <div className="flex flex-wrap gap-2">
-                        <Badge variant="secondary">Assigned IP: {provision.assigned_ip}</Badge>
-                        <Badge variant="secondary">Endpoint: {provision.endpoint}</Badge>
-                        <Badge variant="secondary">Port: {provision.listen_port}</Badge>
-                        <Badge variant="secondary">MTU: {provision.mtu}</Badge>
+                        <Badge variant="secondary">Assigned IP: {provision.address}</Badge>
+                        <Badge variant="secondary">Endpoint: {provision.endpoint_host}:{provision.endpoint_port}</Badge>
+                        <Badge variant="secondary">Allowed IPs: {provision.allowed_ips}</Badge>
+                        <Badge variant="secondary">DNS: {provision.dns}</Badge>
                       </div>
 
                       <div className="relative">
@@ -525,15 +469,9 @@ export default function Home() {
                       <div className="rounded-full bg-destructive/10 p-3">
                         <Shield className="h-6 w-6 text-destructive" />
                       </div>
-                      <h2 className="text-lg font-semibold">Unable to contact the TunGuard server</h2>
-                      <p className="text-sm text-muted-foreground">Check:</p>
-                      <ul className="text-sm text-muted-foreground list-disc list-inside">
-                        <li>Server address</li>
-                        <li>API port</li>
-                        <li>Firewall</li>
-                        <li>Reverse proxy</li>
-                        <li>API availability</li>
-                      </ul>
+                      <h2 className="text-lg font-semibold">Failed to generate config</h2>
+                      <p className="text-sm text-muted-foreground">{error}</p>
+                      <p className="text-sm text-muted-foreground">Check the server IP, port 9000, and firewall.</p>
                       <Button variant="outline" onClick={handleReset}>Try Again</Button>
                     </div>
                   </CardContent>
@@ -586,12 +524,6 @@ export default function Home() {
                 </a>
               </Button>
             </div>
-            <p className="mt-6 text-sm text-muted-foreground">
-              Install with:{" "}
-              <code className="rounded bg-muted px-2 py-0.5 text-xs">
-                curl -fsSL https://raw.githubusercontent.com/TunGuard/get/main/installer.sh | bash
-              </code>
-            </p>
           </div>
         </section>
       </main>

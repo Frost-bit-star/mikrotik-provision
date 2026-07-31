@@ -1,15 +1,12 @@
 import axios from "axios";
 import type {
-  HealthResponse,
-  StatusResponse,
-  ServerKeyResponse,
-  ProvisionRequest,
-  ProvisionResponse,
+  GenerateConfigRequest,
+  GenerateConfigResponse,
 } from "./types";
 
 const API_PORT = 9000;
 
-function createClient(serverAddress: string, _apiPort?: number) {
+function createClient(serverAddress: string) {
   const baseURL = `http://${serverAddress}:${API_PORT}`;
 
   return axios.create({
@@ -18,42 +15,14 @@ function createClient(serverAddress: string, _apiPort?: number) {
   });
 }
 
-export async function checkHealth(
+export async function generateConfig(
   serverAddress: string,
-  _apiPort?: number
-): Promise<HealthResponse> {
-  const client = createClient(serverAddress);
-  const { data } = await client.get<HealthResponse>("/api/health");
-  return data;
-}
-
-export async function getStatus(
-  serverAddress: string,
-  _apiPort?: number
-): Promise<StatusResponse> {
-  const client = createClient(serverAddress);
-  const { data } = await client.get<StatusResponse>("/api/status");
-  return data;
-}
-
-export async function getServerKey(
-  serverAddress: string,
-  _apiPort?: number
-): Promise<ServerKeyResponse> {
-  const client = createClient(serverAddress);
-  const { data } = await client.get<ServerKeyResponse>("/api/server_key");
-  return data;
-}
-
-export async function provisionMikrotik(
-  serverAddress: string,
-  _apiPort: number | undefined,
-  payload: ProvisionRequest
-): Promise<ProvisionResponse> {
+  payload: GenerateConfigRequest
+): Promise<GenerateConfigResponse> {
   const client = createClient(serverAddress);
 
-  const { data } = await client.post<ProvisionResponse>(
-    "/api/provision/mikrotik",
+  const { data } = await client.post<GenerateConfigResponse>(
+    "/api/peer/generate-config",
     payload
   );
 
