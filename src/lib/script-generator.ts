@@ -42,9 +42,12 @@ export function generateScript(
   interfaceName: string,
   config: WireGuardConfig
 ): string {
-  const allowedIps = config.allowed_ips.replace(/\s*,\s*/g, ",")
-  const routeTarget =
-    allowedIps.split(",").find((s) => !s.includes(":")) || "0.0.0.0/0"
+  const ip = config.address.split("/")[0].trim()
+  const octets = ip.split(".")
+  const subnet =
+    octets.length === 4
+      ? `${octets.slice(0, 3).join(".")}.0/24`
+      : "10.100.0.0/24"
 
   return `/interface wireguard
 :if ([:len [/interface wireguard find name="${interfaceName}"]] > 0) do={
@@ -55,21 +58,21 @@ export function generateScript(
 add name="${interfaceName}" mtu=1420 private-key="${config.private_key}"
 
 /interface wireguard peers
-add allowed-address=${allowedIps} endpoint-address=${config.endpoint_host} \\
+add allowed-address=${subnet} endpoint-address=${config.endpoint_host} \\
     endpoint-port=${config.endpoint_port} interface=${interfaceName} \\
     persistent-keepalive=${config.persistent_keepalive} \\
     public-key="${config.server_public_key}"
 
 /ip address
-add address=${config.address} interface=${interfaceName}
+add address=${ip}/24 interface=${interfaceName}
 
 /ip route
-add disabled=no dst-address=${routeTarget} gateway=${interfaceName}
+add disabled=no dst-address=${subnet} gateway=${interfaceName}
 
 /ip dns
 set servers=${config.dns}
 
-:log info "TunGuard provisioning completed successfully"
-:log info "Assigned IP: ${config.address} | Endpoint: ${config.endpoint_host}:${config.endpoint_port}"
+:log info "TunGuard management tunnel completed successfully"
+:log info "Assigned IP: ${ip} | Endpoint: ${config.endpoint_host}:${config.endpoint_port}"
 `
 }
