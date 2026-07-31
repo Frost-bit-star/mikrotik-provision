@@ -88,7 +88,7 @@ const deploymentOptions = [
     icon: Shield,
     title: "TunGuard WireGuard",
     tagline: "Automated WireGuard with a peer dashboard",
-    bestFor: "You manage many routers — especially behind CGNAT or dynamic IPs — and want one control plane.",
+    bestFor: "You manage many routers, especially behind CGNAT or dynamic IPs, and want one control plane.",
     points: [
       "Self-hosted server with a dashboard for every peer and keypair",
       "Jump host + built-in SSH terminal to reach any router",
@@ -102,7 +102,7 @@ const deploymentOptions = [
     tagline: "Site-to-site script for an existing gateway",
     bestFor: "You already run an IPsec gateway and just need a router pointed at it.",
     points: [
-      "Generates a RouterOS IPsec script — no TunGuard server needed",
+      "Generates a RouterOS IPsec script, no TunGuard server needed",
       "Connects your local LAN to a remote LAN",
       "Works with MikroTik CHR, strongSwan, or any IKEv2 gateway",
       "No peer dashboard: peers are managed on your own gateway",
@@ -301,7 +301,7 @@ export default function Home() {
           <div className="relative mx-auto flex max-w-6xl flex-col items-center px-4 py-20 text-center lg:py-32">
             <Badge variant="secondary" className="mb-6">Open Source MikroTik Provisioning</Badge>
             <h1 className="max-w-3xl text-4xl font-bold tracking-tight sm:text-5xl lg:text-6xl">
-              Provision your MikroTik routers —{" "}
+              Provision your MikroTik routers,{" "}
               <span className="text-primary">WireGuard or IPsec</span>.
             </h1>
             <p className="mt-6 max-w-2xl text-lg text-muted-foreground">
@@ -386,7 +386,7 @@ export default function Home() {
           <div className="mx-auto max-w-6xl px-4">
             <h2 className="text-center text-3xl font-bold tracking-tight">Why This Dashboard?</h2>
             <p className="mt-4 text-center text-muted-foreground">
-              Everything you need to provision MikroTik routers — for WireGuard or IPsec.
+              Everything you need to provision MikroTik routers, for WireGuard or IPsec.
             </p>
             <div className="mt-12 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
               {features.map((f) => {
@@ -664,7 +664,7 @@ export default function Home() {
               </div>
               <p className="mt-3 text-sm text-muted-foreground">
                 Open source MikroTik provisioning. Automate WireGuard with TunGuard or generate a
-                native IPsec script — all from one dashboard.
+                native IPsec script, all from one dashboard.
               </p>
             </div>
             <div>
