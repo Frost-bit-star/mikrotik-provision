@@ -42,17 +42,26 @@ export function generateScript(
   interfaceName: string,
   config: WireGuardConfig
 ): string {
-  const ip = config.address.split("/")[0].trim()
+  const address = config.address.trim()
+  const ip = address.split("/")[0].trim()
+  const prefix = address.split("/")[1] || "24"
   const octets = ip.split(".")
   const subnet =
     octets.length === 4
       ? `${octets.slice(0, 3).join(".")}.0/24`
       : `${ip}/24`
 
-  return `/interface wireguard
-:if ([:len [/interface wireguard find name="${interfaceName}"]] > 0) do={
-    /interface wireguard remove [find name="${interfaceName}"]
-}
+  return `/ip address
+remove [find interface="${interfaceName}"]
+
+/ip route
+remove [find comment="${interfaceName}"]
+
+/interface wireguard peers
+remove [find interface="${interfaceName}"]
+
+/interface wireguard
+remove [find name="${interfaceName}"]
 
 /interface wireguard
 add name="${interfaceName}" mtu=1420 private-key="${config.private_key}"
@@ -64,10 +73,10 @@ add allowed-address=${subnet} endpoint-address=${config.endpoint_host} \\
     public-key="${config.server_public_key}"
 
 /ip address
-add address=${ip}/24 interface=${interfaceName}
+add address=${ip}/${prefix} interface=${interfaceName}
 
 /ip route
-add disabled=no dst-address=${subnet} gateway=${interfaceName}
+add comment="${interfaceName}" disabled=no dst-address=${subnet} gateway=${interfaceName}
 
 /ip dns
 set servers=${config.dns}
