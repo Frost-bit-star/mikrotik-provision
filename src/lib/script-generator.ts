@@ -45,23 +45,27 @@ export function generateScript(
   const address = config.address.trim()
   const ip = address.split("/")[0].trim()
   const prefix = address.split("/")[1] || "24"
-  const octets = ip.split(".")
-  const subnet =
-    octets.length === 4
-      ? `${octets.slice(0, 3).join(".")}.0/24`
-      : `${ip}/24`
+  const subnet = config.allowed_ips || `${ip}/${prefix}`
 
   return `/ip address
-remove [find interface="${interfaceName}"]
+:if ([:len [/ip address find comment="${interfaceName}"]] > 0) do={
+    remove [find comment="${interfaceName}"]
+}
 
 /ip route
-remove [find comment="${interfaceName}"]
+:if ([:len [/ip route find comment="${interfaceName}"]] > 0) do={
+    remove [find comment="${interfaceName}"]
+}
 
 /interface wireguard peers
-remove [find interface="${interfaceName}"]
+:if ([:len [/interface wireguard peers find interface="${interfaceName}"]] > 0) do={
+    remove [find interface="${interfaceName}"]
+}
 
 /interface wireguard
-remove [find name="${interfaceName}"]
+:if ([:len [/interface wireguard find name="${interfaceName}"]] > 0) do={
+    remove [find name="${interfaceName}"]
+}
 
 /interface wireguard
 add name="${interfaceName}" mtu=1420 private-key="${config.private_key}"
@@ -73,7 +77,7 @@ add allowed-address=${subnet} endpoint-address=${config.endpoint_host} \\
     public-key="${config.server_public_key}"
 
 /ip address
-add address=${ip}/${prefix} interface=${interfaceName}
+add comment="${interfaceName}" address=${ip}/${prefix} interface=${interfaceName}
 
 /ip route
 add comment="${interfaceName}" disabled=no dst-address=${subnet} gateway=${interfaceName}
