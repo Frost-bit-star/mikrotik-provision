@@ -262,6 +262,7 @@ export default function Home() {
             <a href="#how-it-works" className="text-sm text-muted-foreground hover:text-foreground transition-colors">How it Works</a>
             <a href="#features" className="text-sm text-muted-foreground hover:text-foreground transition-colors">Features</a>
             <a href="#generator" className="text-sm text-muted-foreground hover:text-foreground transition-colors">Generator</a>
+            <a href="#troubleshooting" className="text-sm text-muted-foreground hover:text-foreground transition-colors">Troubleshooting</a>
             <a href="https://github.com/tunguard" target="_blank" rel="noopener noreferrer" className="text-sm text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1">
               Docs <ExternalLink className="h-3 w-3" />
             </a>
@@ -282,6 +283,7 @@ export default function Home() {
               <a href="#how-it-works" className="text-sm text-muted-foreground hover:text-foreground" onClick={() => setMobileOpen(false)}>How it Works</a>
               <a href="#features" className="text-sm text-muted-foreground hover:text-foreground" onClick={() => setMobileOpen(false)}>Features</a>
               <a href="#generator" className="text-sm text-muted-foreground hover:text-foreground" onClick={() => setMobileOpen(false)}>Generator</a>
+              <a href="#troubleshooting" className="text-sm text-muted-foreground hover:text-foreground" onClick={() => setMobileOpen(false)}>Troubleshooting</a>
               <a href="https://github.com/tunguard" target="_blank" rel="noopener noreferrer" className="text-sm text-muted-foreground hover:text-foreground" onClick={() => setMobileOpen(false)}>Docs</a>
               <a href="https://github.com/tunguard" target="_blank" rel="noopener noreferrer">
                 <Button variant="outline" size="sm" className="w-full gap-2">
@@ -601,6 +603,46 @@ export default function Home() {
                   </CardContent>
                 </Card>
               )}
+            </div>
+          </div>
+        </section>
+
+        {/* Troubleshooting */}
+        <section id="troubleshooting" className="border-b py-20">
+          <div className="mx-auto max-w-6xl px-4">
+            <div className="mx-auto max-w-3xl">
+              <h2 className="text-center text-3xl font-bold tracking-tight">Troubleshooting</h2>
+              <p className="mt-4 text-center text-muted-foreground">
+                WireGuard tunnel is up but UDP traffic is being dropped? Check your firewall rule order.
+              </p>
+
+              <Card className="mt-12">
+                <CardContent className="pt-6">
+                  <h3 className="font-semibold">Firewall Rule Order</h3>
+                  <p className="mt-2 text-sm text-muted-foreground">
+                    MikroTik firewall rules are processed from top to bottom. If your router has a
+                    default <code className="rounded bg-muted px-1 py-0.5 text-xs">drop</code> rule, the
+                    TunGuard allow rule must be placed above that rule. If the allow rule is below the
+                    drop rule, TunGuard will connect but management access will fail.
+                  </p>
+
+                  <p className="mt-4 text-sm font-semibold text-foreground">Check your firewall order:</p>
+                  <pre className="mt-2 overflow-auto rounded-lg border bg-muted p-4 text-xs leading-relaxed">
+                    <code>/ip firewall filter print</code>
+                  </pre>
+
+                  <p className="mt-4 text-sm font-semibold text-foreground">Move the TunGuard rule above the drop rule:</p>
+                  <pre className="mt-2 overflow-auto rounded-lg border bg-muted p-4 text-xs leading-relaxed">
+                    <code>/ip firewall filter move {"<TunGuard-rule-number>"} {"<drop-rule-number>"}</code>
+                  </pre>
+
+                  <p className="mt-4 text-sm text-muted-foreground">
+                    Replace the numbers with the actual rule positions shown by your router. TunGuard
+                    does not automatically reorder firewall rules because existing MikroTik firewall
+                    policies vary between installations.
+                  </p>
+                </CardContent>
+              </Card>
             </div>
           </div>
         </section>

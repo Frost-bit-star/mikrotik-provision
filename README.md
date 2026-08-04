@@ -53,6 +53,34 @@ Your router will automatically:
 - **No data stored** — completely stateless, runs on Vercel
 - **Advanced options** — customize API port, device name, WireGuard interface, MTU, and more
 
+## Troubleshooting
+
+### WireGuard is connected but UDP traffic is being dropped
+
+If your WireGuard tunnel comes up but management access or traffic keeps failing, the usual cause is firewall rule order — the TunGuard allow rule sits below a default `drop` rule on your router.
+
+### Firewall Rule Order
+
+MikroTik firewall rules are processed from top to bottom.
+
+If your router has a default `drop` rule, the TunGuard allow rule must be placed above that rule. If the allow rule is below the drop rule, TunGuard will connect but management access will fail.
+
+Check your firewall order:
+
+```routeros
+/ip firewall filter print
+```
+
+Move the TunGuard rule above the drop rule:
+
+```routeros
+/ip firewall filter move <TunGuard-rule-number> <drop-rule-number>
+```
+
+Replace the numbers with the actual rule positions shown by your router.
+
+TunGuard does not automatically reorder firewall rules because existing MikroTik firewall policies vary between installations.
+
 ## Development
 
 ```bash
